@@ -127,6 +127,29 @@ are written to `checkpoints/<run_name>/`, alongside the exact config that produc
 `Config` field can be overridden on the CLI, e.g. `--num_envs 256`. `configs/` also holds
 map-size presets (`S` / `M` / `L` / `default`).
 
+For a CPU-only smoke test of the released PPO path from random weights, run:
+
+```bash
+python main.py --config configs/smoke/L_7d_gae90_cpu.yaml
+```
+
+This config keeps the released `L_7d_gae90` architecture and PPO hyperparameters,
+but reduces rollout, pool, minibatch, truncation, and evaluation sizes to validate
+the loop on one CPU device. It writes `checkpoints/smoke_L_7d_gae90_cpu/config.yaml`,
+an EMA checkpoint at iteration 2, and `smoke_L_7d_gae90_cpu_final.eqx`. The saved
+config intentionally leaves `init_checkpoint` and `init_encoder_checkpoint` empty.
+
+When moving to a GPU/accelerator, use the released config directly. Disable
+reference Elo until the unpublished reference checkpoints are available:
+
+```bash
+python main.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0
+```
+
+The upstream repository did not publish a dependency lock, released-agent checkpoint,
+or authoritative simulator revision, so this command recreates the released PPO setup
+but is not a bitwise reproduction guarantee.
+
 ## 🕹️ Evaluate / play
 
 ```bash

@@ -46,6 +46,14 @@ def load_secret(path: str) -> str | None:
         return None
 
 
+def set_city_range(env, value):
+    """Set neutral-city/castle range across simulator naming versions."""
+    if hasattr(env, "num_castles_range"):
+        env.num_castles_range = value
+    else:
+        env.num_cities_range = value
+
+
 def main():
     # TF32 matmul: free ~2x speedup on Ampere+ GPUs (H100/A100), no accuracy loss for training
     jax.config.update("jax_default_matmul_precision", "tensorfloat32")
@@ -172,7 +180,7 @@ def main():
         if stage0.castle_val_min is not None:
             env.castle_val_range = (stage0.castle_val_min, stage0.castle_val_max)
         if stage0.num_cities_min is not None:
-            env.num_cities_range = (stage0.num_cities_min, stage0.num_cities_max)
+            set_city_range(env, (stage0.num_cities_min, stage0.num_cities_max))
         if stage0.gamma is not None:
             object.__setattr__(cfg, 'gamma', stage0.gamma)
         print(f"Curriculum: {len(stages)} stages")

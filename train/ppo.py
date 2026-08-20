@@ -3,10 +3,12 @@
 import os
 import time
 from functools import partial
+import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.random as jrandom
 import equinox as eqx
+from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 
 from generals.core.env import GeneralsEnv
 from train.rewards import win_lose_reward
@@ -16,6 +18,29 @@ from evals.ref_eval import load_refs
 
 
 # ---- GAE ----
+
+
+def device_put_replicated(tree, devices=None):
+    """Replicate a pytree with the leading device axis expected by pmap."""
+    devices = jax.devices() if devices is None else devices
+    mesh = Mesh(np.asarray(devices), ("devices",))
+    sharding = NamedSharding(mesh, P("devices"))
+    return jax.tree.map(lambda x: jax.device_put(jnp.stack([x] * len(devices)), sharding), tree)
+
+
+def get_city_range(env):
+    """Read neutral-city/castle range across simulator naming versions."""
+    if hasattr(env, "num_castles_range"):
+        return env.num_castles_range
+    return env.num_cities_range
+
+
+def set_city_range(env, value):
+    """Set neutral-city/castle range across simulator naming versions."""
+    if hasattr(env, "num_castles_range"):
+        env.num_castles_range = value
+    else:
+        env.num_cities_range = value
 
 
 @jax.jit
@@ -234,8 +259,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
 
     # Partition network for pmap: array leaves are replicated, static captured in closures
     params, static = eqx.partition(network, eqx.is_array)
-    params = jax.device_put_replicated(params, jax.devices())
-    opt_state = jax.device_put_replicated(opt_state, jax.devices())
+    params = device_put_replicated(params)
+    opt_state = device_put_replicated(opt_state)
 
     # Per-device environment init
     def _init_envs(key):
@@ -249,8 +274,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
     # Initialize per-network observation state (batched across envs, replicated across devices)
     single_state = init_obs_state_fn(grid_size, cfg.pad_to)
     batched_obs_state = jax.tree.map(lambda x: jnp.tile(x, (num_envs, *([1] * x.ndim))), single_state)
-    obs_state_p0 = jax.device_put_replicated(batched_obs_state, jax.devices())
-    obs_state_p1 = jax.device_put_replicated(batched_obs_state, jax.devices())
+    obs_state_p0 = device_put_replicated(batched_obs_state)
+    obs_state_p1 = device_put_replicated(batched_obs_state)
 
     # Per-device PRNG keys
     keys = jrandom.split(key, num_devices)
@@ -258,7 +283,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
     # ---- pmap wrappers (closures over static args) ----
 
     # Replicate pool across devices for rollout
-    pool_rep = jax.device_put_replicated(pool, jax.devices())
+    pool_rep = device_put_replicated(pool)
 
     def _rollout_self(params, states, key, osp0, osp1, pool_r, gamma):
         network = eqx.combine(params, static)
@@ -306,6 +331,12 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
     per_device_total = cfg.num_steps * 2 * num_envs
     n_keep = int(per_device_total * cfg.adv_top_frac)
     n_keep = (n_keep // cfg.minibatch_size) * cfg.minibatch_size
+    if n_keep < cfg.minibatch_size:
+        raise ValueError(
+            "PPO sample filtering keeps fewer than one complete minibatch: "
+            f"num_steps={cfg.num_steps}, num_envs={num_envs}, adv_top_frac={cfg.adv_top_frac}, "
+            f"minibatch_size={cfg.minibatch_size}. Increase rollout size or lower minibatch_size."
+        )
 
     @jax.pmap
     def _compute_top_idx(advs):
@@ -333,7 +364,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         pad_to=env.pad_to, min_generals_distance=env.min_generals_distance,
         max_generals_distance=env.max_generals_distance,
         truncation=env.truncation, castle_val_range=env.castle_val_range,
-        num_cities_range=env.num_cities_range,
+        num_cities_range=get_city_range(env),
         mountain_density_range=env.mountain_density_range,
         pool_size=1000,
     )
@@ -405,14 +436,14 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
                 if stage.castle_val_min is not None:
                     env.castle_val_range = (stage.castle_val_min, stage.castle_val_max)
                 if stage.num_cities_min is not None:
-                    env.num_cities_range = (stage.num_cities_min, stage.num_cities_max)
+                    set_city_range(env, (stage.num_cities_min, stage.num_cities_max))
                 # Regenerate pool with new params (pool generator recompiles, rollout does NOT)
                 key, pool_key = jrandom.split(key)
                 pool, _ = env.reset(pool_key)
-                pool_rep = jax.device_put_replicated(pool, jax.devices())
+                pool_rep = device_put_replicated(pool)
                 # New eval env (new object forces JIT retrace of evaluate())
                 castle = (stage.castle_val_min, stage.castle_val_max) if stage.castle_val_min is not None else eval_env.castle_val_range
-                cities = (stage.num_cities_min, stage.num_cities_max) if stage.num_cities_min is not None else eval_env.num_cities_range
+                cities = (stage.num_cities_min, stage.num_cities_max) if stage.num_cities_min is not None else get_city_range(eval_env)
                 eval_env = GeneralsEnv(
                     min_grid_size=eval_env.min_grid_size, max_grid_size=eval_env.max_grid_size,
                     pad_to=eval_env.pad_to, min_generals_distance=stage.min_generals_distance,
@@ -427,8 +458,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
                 # Re-init env states from new pool
                 key, reinit_key = jrandom.split(key)
                 states = p_init_envs(jrandom.split(reinit_key, num_devices))
-                obs_state_p0 = jax.device_put_replicated(batched_obs_state, jax.devices())
-                obs_state_p1 = jax.device_put_replicated(batched_obs_state, jax.devices())
+                obs_state_p0 = device_put_replicated(batched_obs_state)
+                obs_state_p1 = device_put_replicated(batched_obs_state)
                 # Update gamma if specified (traced, no recompile needed)
                 if stage.gamma is not None:
                     current_gamma = stage.gamma
@@ -438,7 +469,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         if cfg.reset_pool_every > 0 and it > 0 and it % cfg.reset_pool_every == 0:
             key, pool_key = jrandom.split(key)
             pool, _ = env.reset(pool_key)
-            pool_rep = jax.device_put_replicated(pool, jax.devices())
+            pool_rep = device_put_replicated(pool)
 
         # Gamma annealing: update current_gamma (traced through rollout + GAE, no recompile)
         if gamma_anneal:
