@@ -37,6 +37,7 @@ class Config:
     # Network
     network: str = "history_transformer"
     init_checkpoint: str = ""  # path to .eqx checkpoint to initialize network weights
+    init_encoder_checkpoint: str = ""  # path to network-only .eqx; transfers torso but preserves fresh heads
     ema_checkpoint: str = ""   # path to .eqx checkpoint to initialize EMA weights (default: copy from init_checkpoint)
     ema_decay: float = 0.999
 

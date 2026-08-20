@@ -10,3 +10,8 @@ wandb/
 online/
 evals/eval_human_logs/
 evals/eval_selfplay_logs/
+data/
+artifacts/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

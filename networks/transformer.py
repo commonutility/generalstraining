@@ -221,16 +221,12 @@ class HistoryTransformer(eqx.Module):
         self.temporal_type_embed = jax.random.normal(keys[3 + depth + 3], (2, embed_dim)) * 0.02
 
 
-    def _forward(self, obs, mask, temporal_data, allow_pass=True):
-        """Shared forward trunk -> (flat masked action logits, value, value_aux).
-
-        value_aux is the (num_bins,) logits for CE loss, or the scalar value for MSE.
-        """
-        p = self.pad_to
+    def _encode(self, obs, temporal_data):
+        """Run the shared representation trunk and return tokens plus compute parameters."""
         M = self.patch_size
+        p = self.pad_to
         gp = p // M  # grid of patches
         obs_norm = normalize_observations(obs)
-        mask_prep = prepare_action_mask(mask, p, allow_pass=allow_pass)  # float32 (contains -1e9)
 
         # Mixed precision: cast params and activations to bfloat16
         net = _to_bf16(self) if self.use_bf16 else self
@@ -255,6 +251,23 @@ class HistoryTransformer(eqx.Module):
         for layer in net.transformer_layers:
             x = layer(x)
         x = jax.vmap(net.norm_out)(x)
+        return x, net
+
+    def encode(self, obs, temporal_data):
+        """Return shared torso tokens for pretraining and representation probes."""
+        tokens, _ = self._encode(obs, temporal_data)
+        return tokens.astype(jnp.float32)
+
+    def _forward(self, obs, mask, temporal_data, allow_pass=True):
+        """Shared forward trunk -> (flat masked action logits, value, value_aux).
+
+        value_aux is the (num_bins,) logits for CE loss, or the scalar value for MSE.
+        """
+        p = self.pad_to
+        M = self.patch_size
+        gp = p // M
+        mask_prep = prepare_action_mask(mask, p, allow_pass=allow_pass)  # float32 (contains -1e9)
+        x, net = self._encode(obs, temporal_data)
 
         value_embedding = x[0]
         patch_embeddings = x[3:]  # skip value + 2 temporal tokens

@@ -1,7 +1,7 @@
 [project]
-name = "average-joe"
+name = "generals-representation-pretraining"
 version = "0.1.0"
-description = "JAX/Equinox self-play PPO agent for generals.io"
+description = "Representation pretraining experiments for self-play in Generals.io"
 requires-python = ">=3.11"
 dependencies = [
     "jax",
@@ -14,3 +14,28 @@ dependencies = [
     "pygame",
     "matplotlib",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.12",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["config", "logger", "main"]
+
+[tool.setuptools.packages.find]
+include = ["evals*", "networks*", "pretraining*", "train*"]
+exclude = ["vendor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["vendor"]

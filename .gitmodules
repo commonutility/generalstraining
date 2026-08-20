@@ -1,0 +1,3 @@
+[submodule "vendor/generals-bots"]
+	path = vendor/generals-bots
+	url = https://github.com/commonutility/generals-bots.git

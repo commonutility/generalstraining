@@ -14,7 +14,7 @@ import optax
 from generals.core.env import GeneralsEnv
 
 from config import Config
-from networks import get_network_bundle, build_network
+from networks import get_network_bundle, build_network, load_pretrained_encoder
 from logger import Logger
 from train.ppo import train
 
@@ -110,6 +110,9 @@ def main():
     )
     opt_state = optimizer.init(eqx.filter(network, eqx.is_array))
 
+    if cfg.init_checkpoint and cfg.init_encoder_checkpoint:
+        raise ValueError("Set only one of init_checkpoint and init_encoder_checkpoint")
+
     # Load checkpoint: try (network, opt_state) tuple first, fall back to network-only
     if cfg.init_checkpoint:
         try:
@@ -121,6 +124,10 @@ def main():
             network = eqx.tree_deserialise_leaves(cfg.init_checkpoint, network)
             opt_state = optimizer.init(eqx.filter(network, eqx.is_array))
             print(f"Loaded weights from {cfg.init_checkpoint} (fresh optimizer)")
+    elif cfg.init_encoder_checkpoint:
+        network = load_pretrained_encoder(cfg.init_encoder_checkpoint, network)
+        opt_state = optimizer.init(eqx.filter(network, eqx.is_array))
+        print(f"Loaded encoder from {cfg.init_encoder_checkpoint} (fresh policy/value heads and optimizer)")
 
     params, _ = eqx.partition(network, eqx.is_array)
     print(f"Parameters: {sum(x.size for x in jax.tree.leaves(params)):,}")

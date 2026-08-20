@@ -21,6 +21,50 @@
 
 ---
 
+> [!IMPORTANT]
+> This fork extends Average Joe for the workshop project **When Does
+> Pretraining Help Self-Play?** It keeps the released PPO baseline intact and
+> adds belief-state representation pretraining from privileged simulator
+> labels. See [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) for the controlled
+> comparison and exact commands.
+
+## Workshop setup
+
+Clone with the pinned simulator and install both editable packages:
+
+```bash
+git clone --recurse-submodules https://github.com/commonutility/generalstraining.git
+cd generalstraining
+pip install -e vendor/generals-bots
+pip install -e ".[dev]"
+```
+
+The first end-to-end path is:
+
+```bash
+# Partial observations are inputs; full simulator state supplies labels only.
+python scripts/collect_belief_dataset.py \
+  --output data/belief/random-s.npz
+
+python scripts/train_belief.py \
+  --dataset data/belief/random-s.npz \
+  --output artifacts/pretraining/belief_s.eqx
+
+# Controlled online-budget comparison.
+python main.py --config configs/experiments/s_budget.yaml \
+  --run_name scratch_seed44
+python main.py --config configs/experiments/s_budget.yaml \
+  --run_name belief_seed44 \
+  --init_encoder_checkpoint artifacts/pretraining/belief_s.eqx
+```
+
+The encoder checkpoint is loadable by `main.py` through the
+`init_encoder_checkpoint` option. It transfers torso parameters while preserving
+fresh PPO policy and value heads, keeping the intervention at representation
+initialization.
+
+---
+
 Average Joe is a bot for [generals.io](https://generals.io) — a real-time, fog-of-war
 strategy game — that taught itself to play at a **superhuman** level, from zero, through
 millions of games against itself.

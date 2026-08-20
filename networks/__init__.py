@@ -2,6 +2,8 @@
 
 import inspect
 
+import equinox as eqx
+
 from networks import transformer, common
 from networks.transformer import HistoryTransformer, greedy_action_transformer
 from networks.common import (
@@ -44,3 +46,21 @@ def build_network(cfg, key):
     kwargs = {"grid_size": cfg.pad_to, "pad_to": cfg.pad_to, "key": key}
     kwargs.update({f: getattr(cfg, f) for f in _NET_CFG_FIELDS if f in params})
     return cls(**kwargs)
+
+
+def load_pretrained_encoder(path, network):
+    """Load only representation parameters, preserving fresh policy/value heads."""
+    pretrained = eqx.tree_deserialise_leaves(path, network)
+
+    def torso(candidate):
+        return (
+            candidate.embedder,
+            candidate.value_token,
+            candidate.pos_encoding,
+            candidate.transformer_layers,
+            candidate.norm_out,
+            candidate.temporal_encoder,
+            candidate.temporal_type_embed,
+        )
+
+    return eqx.tree_at(torso, network, replace=torso(pretrained))
