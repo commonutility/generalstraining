@@ -116,7 +116,8 @@ class Config:
 
     pool_size: int = 10_000
     reset_pool_every: int = 10
-    save_every: int = 1000
+    save_every: int = 1000  # periodic full + EMA checkpoint interval; 0 = disabled
+    save_at: Optional[List[int]] = None  # exact PPO iterations for full + EMA checkpoints
     debug: bool = False
 
     # Curriculum (list of stage dicts, or None for no curriculum)
@@ -141,7 +142,7 @@ class Config:
     def __post_init__(self):
         # Coerce types — ruamel.yaml uses ScalarFloat/ScalarInt subtypes
         for f in fields(self):
-            if f.name in ("curriculum",):
+            if f.name in ("curriculum", "save_at"):
                 continue
             val = getattr(self, f.name)
             if val is None:
@@ -150,6 +151,28 @@ class Config:
                 object.__setattr__(self, f.name, float(val))
             elif f.type in (int, Optional[int]) and not isinstance(val, int):
                 object.__setattr__(self, f.name, int(val))
+        self.validate()
+
+    def validate(self):
+        """Normalize and validate values that involve multiple config fields."""
+        if self.ckpt_every < 0 or self.save_every < 0:
+            raise ValueError("ckpt_every and save_every must be >= 0")
+
+        if self.save_at is None:
+            return
+
+        if isinstance(self.save_at, str):
+            raw_save_at = self.save_at.replace(",", " ").split()
+        else:
+            raw_save_at = self.save_at
+        save_at = sorted({int(iteration) for iteration in raw_save_at})
+
+        invalid = [iteration for iteration in save_at if iteration <= 0 or iteration > self.num_iters]
+        if invalid:
+            raise ValueError(
+                f"save_at iterations must be between 1 and num_iters ({self.num_iters}); got {invalid}"
+            )
+        object.__setattr__(self, "save_at", save_at)
 
     @classmethod
     def from_yaml(cls, path: str) -> "Config":

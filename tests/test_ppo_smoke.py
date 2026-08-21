@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from generals.core.env import GeneralsEnv
 
 from config import Config
-from train.ppo import device_put_replicated, get_city_range, set_city_range
+from train.ppo import device_put_replicated, get_city_range, set_city_range, should_save_checkpoint
 
 
 def test_device_put_replicated_adds_pmap_axis():
@@ -80,3 +80,33 @@ def test_cpu_smoke_config_keeps_gae90_ppo_invariants():
     assert n_keep >= smoke.minibatch_size
     map_size_combinations = (smoke.max_grid_size - smoke.min_grid_size + 1) ** 2
     assert smoke.pool_size >= map_size_combinations
+
+
+def test_averagejoe_8k_uses_exact_checkpoint_milestones():
+    cfg = Config.from_yaml("configs/experiments/L_7d_gae90_8k.yaml")
+
+    assert cfg.num_iters == 8000
+    assert cfg.ckpt_every == 0
+    assert cfg.save_every == 0
+    assert cfg.save_at == [1000, 2000, 4000, 8000]
+
+    saved = [
+        iteration
+        for iteration in range(1, cfg.num_iters + 1)
+        if should_save_checkpoint(iteration, cfg.save_every, cfg.save_at)
+    ]
+    assert saved == cfg.save_at
+
+    env_interactions = cfg.num_iters * cfg.num_envs * cfg.num_steps
+    assert env_interactions == 2_097_152_000
+    assert 2 * env_interactions == 4_194_304_000
+
+
+def test_periodic_and_exact_checkpoint_schedules_are_additive():
+    saved = [
+        iteration
+        for iteration in range(1, 9)
+        if should_save_checkpoint(iteration, every=3, save_at=[2, 8])
+    ]
+
+    assert saved == [2, 3, 6, 8]

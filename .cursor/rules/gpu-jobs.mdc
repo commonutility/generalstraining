@@ -1,0 +1,14 @@
+---
+description: Use AWS Batch for GPU training jobs
+alwaysApply: true
+---
+
+# GPU Training Jobs
+
+- Never provision or terminate EC2 instances directly for normal training jobs.
+- Submit GPU work through `python jobs/cli.py --profile generals-jobs submit ...`.
+- Monitor jobs through the CLI's `status` and `logs` commands; do not SSH into instances.
+- Stop jobs through the CLI's `cancel` command.
+- Use `us-east-1` as primary and `us-west-2` only as fallback; do not submit in `us-east-2`.
+- Use the S3 experiment path printed by `submit` for checkpoints, metrics, and results.
+- Read `docs/aws-jobs.md` for workload classes, Spot usage, and regional fallback.

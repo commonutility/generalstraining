@@ -43,6 +43,13 @@ def set_city_range(env, value):
         env.num_cities_range = value
 
 
+def should_save_checkpoint(iteration, every=0, save_at=None):
+    """Return whether an exact or periodic checkpoint is due."""
+    periodic = every > 0 and iteration % every == 0
+    explicit = save_at is not None and iteration in save_at
+    return periodic or explicit
+
+
 @jax.jit
 def compute_gae(rewards, values, next_values, terminated, truncated, gamma, gae_lambda):
     _, N = rewards.shape
@@ -638,6 +645,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
             "train/draw_rate": dr,
             "train/mean_owned_cities": mean_owned_cities,
             "train/sps": sps,
+            "train/env_interactions": (it + 1) * cfg.num_envs * cfg.num_steps * num_devices,
+            "train/agent_interactions": 2 * (it + 1) * cfg.num_envs * cfg.num_steps * num_devices,
             "train/ent_coef": current_ent_coef,
             "train/lr": current_lr,
             "train/gamma": current_gamma,
@@ -664,11 +673,15 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         # Extract single-device network for checkpointing
         network = _get_network()
 
-        if (it + 1) % cfg.ckpt_every == 0:
+        completed_iterations = it + 1
+        full_save_due = should_save_checkpoint(completed_iterations, cfg.save_every, cfg.save_at)
+        ema_save_due = should_save_checkpoint(completed_iterations, cfg.ckpt_every) or full_save_due
+
+        if ema_save_due and not full_save_due:
             ema_ckpt_path = os.path.join(ckpt_dir, f"{run_name}_ema_{it + 1}.eqx")
             eqx.tree_serialise_leaves(ema_ckpt_path, eqx.combine(ema_params, static))
 
-        if (it + 1) % cfg.save_every == 0:
+        if full_save_due:
             path = os.path.join(ckpt_dir, f"{run_name}_{it + 1}.eqx")
             eqx.tree_serialise_leaves(path, (network, _get_opt_state()))
             ema_network = eqx.combine(ema_params, static)
@@ -676,7 +689,12 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
             eqx.tree_serialise_leaves(ema_path, ema_network)
             ema_latest = os.path.join(ckpt_dir, f"{run_name}_ema.eqx")
             eqx.tree_serialise_leaves(ema_latest, ema_network)
-            print(f"  SAVED: {path} + EMA: {ema_path}")
+            env_interactions = completed_iterations * cfg.num_envs * cfg.num_steps * num_devices
+            agent_interactions = 2 * env_interactions
+            print(
+                f"  SAVED: {path} + EMA: {ema_path} "
+                f"(env interactions: {env_interactions:,}; agent interactions: {agent_interactions:,})"
+            )
 
         # Free large arrays to prevent BFC allocator fragmentation on next rollout
         del obs, masks, temporal, actions, lps, advs, rets, train_mask, batch, sample_idx

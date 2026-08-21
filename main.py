@@ -26,7 +26,10 @@ def parse_args():
     # Add every Config field as an optional CLI override
     for f in fields(Config):
         flag = f"--{f.name}"
-        if f.type is int or f.type == "int":
+        if f.name == "save_at":
+            parser.add_argument(flag, type=int, nargs="+", default=None,
+                                help="Exact PPO iterations at which to save full and EMA checkpoints")
+        elif f.type is int or f.type == "int":
             parser.add_argument(flag, type=int, default=None)
         elif f.type is float or f.type == "float":
             parser.add_argument(flag, type=float, default=None)
@@ -66,6 +69,7 @@ def main():
         cli_val = getattr(args, f.name)
         if cli_val is not None:
             object.__setattr__(cfg, f.name, cli_val)
+    cfg.validate()
 
     bundle = get_network_bundle(cfg.network)
     NetworkClass = bundle["cls"]

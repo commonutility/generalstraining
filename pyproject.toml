@@ -13,6 +13,7 @@ dependencies = [
     "wandb",
     "pygame",
     "matplotlib",
+    "boto3",
 ]
 
 [project.optional-dependencies]

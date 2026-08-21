@@ -146,6 +146,31 @@ reference Elo until the unpublished reference checkpoints are available:
 python main.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0
 ```
 
+Normal GPU training runs through the managed AWS Batch interface:
+
+```bash
+python jobs/cli.py --profile generals-jobs submit \
+  --name training-run \
+  --command "python main.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0"
+```
+
+See [`docs/aws-jobs.md`](docs/aws-jobs.md) for workload classes, monitoring,
+Spot usage, artifact paths, and the `us-west-2` fallback.
+
+For the 8,000-iteration AverageJoe run with exact full and EMA checkpoints at
+iterations 1,000, 2,000, 4,000, and 8,000:
+
+```bash
+python main.py --config configs/experiments/L_7d_gae90_8k.yaml
+```
+
+The trainer supports exact milestones for any run through `save_at` in YAML or
+`--save_at 1000 2000 4000 8000` on the CLI. Set `save_every: 0` and
+`ckpt_every: 0` when only those milestone files should be written. Logged
+`train/env_interactions` and `train/agent_interactions` account for the active
+device count; on one device this 8,000-iteration run collects 2,097,152,000
+environment steps and 4,194,304,000 two-player agent transitions.
+
 The upstream repository did not publish a dependency lock, released-agent checkpoint,
 or authoritative simulator revision, so this command recreates the released PPO setup
 but is not a bitwise reproduction guarantee.
