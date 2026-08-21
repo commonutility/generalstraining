@@ -1,14 +1,10 @@
 """Visualize a trained PPO agent playing against a random opponent.
 
 Usage:
-    python evals/eval.py checkpoints/model.eqx --config configs/S.yaml
-    python evals/eval.py checkpoints/model.eqx --config configs/S.yaml --fps 5
-    python evals/eval.py checkpoints/model.eqx --config configs/S.yaml --headless
+    python scripts/evaluate.py checkpoints/model.eqx --config configs/S.yaml
+    python scripts/evaluate.py checkpoints/model.eqx --config configs/S.yaml --fps 5
+    python scripts/evaluate.py checkpoints/model.eqx --config configs/S.yaml --headless
 """
-
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import argparse
 import time
@@ -20,8 +16,8 @@ from generals.core.game import get_observation
 from generals.core.action import compute_valid_move_mask
 from generals.core.env import GeneralsEnv
 
-from networks import obs_to_array, random_action
-from evals.agent import Agent
+from generals_pretraining.models import obs_to_array, random_action
+from generals_pretraining.evaluation.agent import Agent
 
 
 def _make_eval_env(cfg):

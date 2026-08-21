@@ -8,9 +8,8 @@ wandb/
 *.log
 *.out
 online/
-evals/eval_human_logs/
-evals/eval_selfplay_logs/
-data/
+data/*
+!data/README.md
 artifacts/
 .pytest_cache/
 .ruff_cache/

@@ -9,9 +9,9 @@ import numpy as np
 from generals.core.action import compute_valid_move_mask
 from generals.core.game import get_observation
 
-from networks import obs_to_array, random_action, reset_done_envs
-from networks.common import augment_obs, init_obs_state
-from pretraining.targets import make_belief_targets
+from generals_pretraining.models import obs_to_array, random_action, reset_done_envs
+from generals_pretraining.models.common import augment_obs, init_obs_state
+from generals_pretraining.pretraining.targets import make_belief_targets
 
 
 def collect_belief_dataset(env, pool, *, num_envs: int, num_steps: int, seed: int):

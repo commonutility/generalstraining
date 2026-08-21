@@ -51,14 +51,14 @@ python scripts/train_belief.py \
   --output artifacts/pretraining/belief_s.eqx
 
 # Controlled online-budget comparison.
-python main.py --config configs/experiments/s_budget.yaml \
+python scripts/train_ppo.py --config configs/experiments/s_budget.yaml \
   --run_name scratch_seed44
-python main.py --config configs/experiments/s_budget.yaml \
+python scripts/train_ppo.py --config configs/experiments/s_budget.yaml \
   --run_name belief_seed44 \
   --init_encoder_checkpoint artifacts/pretraining/belief_s.eqx
 ```
 
-The encoder checkpoint is loadable by `main.py` through the
+The encoder checkpoint is loadable by `scripts/train_ppo.py` through the
 `init_encoder_checkpoint` option. It transfers torso parameters while preserving
 fresh PPO policy and value heads, keeping the intervention at representation
 initialization.
@@ -99,8 +99,8 @@ The board — plus a short history of each player's army and land — is encoded
 run through a small transformer with two heads: one picks the move, the other estimates who
 is winning.
 
-- **Policy–value transformer** — pre-norm self-attention over board + temporal tokens; emits per-cell move logits and a distributional (HL-Gauss) value. &nbsp;·&nbsp; `networks/transformer.py`
-- **Self-play PPO** — one network plays both sides; GAE, top-k advantage filtering, EMA weights for evaluation. &nbsp;·&nbsp; `train/ppo.py`
+- **Policy–value transformer** — pre-norm self-attention over board + temporal tokens; emits per-cell move logits and a distributional (HL-Gauss) value. &nbsp;·&nbsp; `src/generals_pretraining/models/transformer.py`
+- **Self-play PPO** — one network plays both sides; GAE, top-k advantage filtering, EMA weights for evaluation. &nbsp;·&nbsp; `src/generals_pretraining/rl/ppo.py`
 
 ## 📦 Install
 
@@ -119,7 +119,7 @@ before running.
 ## 🚀 Train
 
 ```bash
-python main.py --config configs/custom/L_7d_gae90.yaml
+python scripts/train_ppo.py --config configs/custom/L_7d_gae90.yaml
 ```
 
 `L_7d_gae90` is the config behind the released agent. Checkpoints (a regular and an EMA copy)
@@ -130,7 +130,7 @@ map-size presets (`S` / `M` / `L` / `default`).
 For a CPU-only smoke test of the released PPO path from random weights, run:
 
 ```bash
-python main.py --config configs/smoke/L_7d_gae90_cpu.yaml
+python scripts/train_ppo.py --config configs/smoke/L_7d_gae90_cpu.yaml
 ```
 
 This config keeps the released `L_7d_gae90` architecture and PPO hyperparameters,
@@ -143,7 +143,7 @@ When moving to a GPU/accelerator, use the released config directly. Disable
 reference Elo until the unpublished reference checkpoints are available:
 
 ```bash
-python main.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0
+python scripts/train_ppo.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0
 ```
 
 Normal GPU training runs through the managed AWS Batch interface:
@@ -151,7 +151,7 @@ Normal GPU training runs through the managed AWS Batch interface:
 ```bash
 python jobs/cli.py --profile generals-jobs submit \
   --name training-run \
-  --command "python main.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0"
+  --command "python scripts/train_ppo.py --config configs/custom/L_7d_gae90.yaml --ref_eval_every 0"
 ```
 
 See [`docs/aws-jobs.md`](docs/aws-jobs.md) for workload classes, monitoring,
@@ -161,7 +161,7 @@ For the 8,000-iteration AverageJoe run with exact full and EMA checkpoints at
 iterations 1,000, 2,000, 4,000, and 8,000:
 
 ```bash
-python main.py --config configs/experiments/L_7d_gae90_8k.yaml
+python scripts/train_ppo.py --config configs/experiments/L_7d_gae90_8k.yaml
 ```
 
 The trainer supports exact milestones for any run through `save_at` in YAML or
@@ -178,8 +178,8 @@ but is not a bitwise reproduction guarantee.
 ## 🕹️ Evaluate / play
 
 ```bash
-python evals/eval.py                                       # vs a random opponent (pygame)
-python evals/eval_selfplay.py                              # the agent vs itself
+python scripts/evaluate.py                                 # vs a random opponent (pygame)
+python scripts/eval_selfplay.py                            # the agent vs itself
 ```
 
 ## 📈 Logging (optional)

@@ -10,11 +10,11 @@ import jax.random as jrandom
 import equinox as eqx
 from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
 
-from generals.core.env import GeneralsEnv
-from train.rewards import win_lose_reward
-from train.rollout_selfplay import collect_rollout as collect_rollout_self
-from train.evaluations import periodic_eval, EvalCtx
-from evals.ref_eval import load_refs
+from generals_pretraining.envs import GeneralsEnv
+from generals_pretraining.rl.rewards import win_lose_reward
+from generals_pretraining.rl.rollout import collect_rollout as collect_rollout_self
+from generals_pretraining.rl.evaluations import periodic_eval, EvalCtx
+from generals_pretraining.evaluation.ref_eval import load_refs
 
 
 # ---- GAE ----
@@ -311,7 +311,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         std = jnp.sqrt(jnp.maximum(mean_sq - mean ** 2, 0.0))
         return (advs - mean) / (std + 1e-8)
 
-    from train.magnet import expander_magnet
+    from generals_pretraining.rl.magnet import expander_magnet
     magnet_fn = expander_magnet
 
     def _ppo_step(params, opt_state, batch, key, ent_coef, sample_idx):

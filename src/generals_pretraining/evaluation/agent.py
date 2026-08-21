@@ -6,8 +6,8 @@ import jax
 import jax.random as jrandom
 import equinox as eqx
 
-from config import Config
-from networks import get_network_bundle, build_network
+from generals_pretraining.config import Config
+from generals_pretraining.models import get_network_bundle, build_network
 
 
 def _safe_load_config(path):

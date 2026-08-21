@@ -3,11 +3,11 @@ import jax.numpy as jnp
 import jax.random as jrandom
 from generals.core.game import create_initial_state, get_observation
 
-from networks import load_pretrained_encoder, obs_to_array
-from networks.common import augment_obs, init_obs_state
-from networks.transformer import HistoryTransformer
-from pretraining.model import BeliefPretrainer, belief_loss
-from pretraining.targets import make_belief_targets
+from generals_pretraining.models import load_pretrained_encoder, obs_to_array
+from generals_pretraining.models.common import augment_obs, init_obs_state
+from generals_pretraining.models.transformer import HistoryTransformer
+from generals_pretraining.pretraining.model import BeliefPretrainer, belief_loss
+from generals_pretraining.pretraining.targets import make_belief_targets
 
 
 def example_state():

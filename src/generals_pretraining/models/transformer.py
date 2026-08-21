@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import equinox as eqx
 from jaxtyping import Array
 
-from networks.common import decode_action, encode_action, prepare_action_mask, normalize_observations
+from generals_pretraining.models.common import decode_action, encode_action, prepare_action_mask, normalize_observations
 
 
 # ---- Helpers ----

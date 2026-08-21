@@ -4,9 +4,9 @@ import inspect
 
 import equinox as eqx
 
-from networks import transformer, common
-from networks.transformer import HistoryTransformer, greedy_action_transformer
-from networks.common import (
+from generals_pretraining.models import transformer, common
+from generals_pretraining.models.transformer import HistoryTransformer, greedy_action_transformer
+from generals_pretraining.models.common import (
     obs_to_array,
     random_action,
     reset_done_envs,

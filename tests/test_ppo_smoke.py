@@ -1,9 +1,8 @@
 import jax
 import jax.numpy as jnp
-from generals.core.env import GeneralsEnv
-
-from config import Config
-from train.ppo import device_put_replicated, get_city_range, set_city_range, should_save_checkpoint
+from generals_pretraining.envs import GeneralsEnv
+from generals_pretraining.config import Config
+from generals_pretraining.rl.ppo import device_put_replicated, get_city_range, set_city_range, should_save_checkpoint
 
 
 def test_device_put_replicated_adds_pmap_axis():

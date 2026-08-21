@@ -5,10 +5,9 @@ import json
 
 import jax.random as jrandom
 
-from generals.core.env import GeneralsEnv
-
-from evals.agent import Agent, _safe_load_config
-from evals.matchup import play_match, compute_elo, merge_h2h
+from generals_pretraining.envs import GeneralsEnv
+from generals_pretraining.evaluation.agent import Agent, _safe_load_config
+from generals_pretraining.evaluation.matchup import play_match, compute_elo, merge_h2h
 
 
 def discover_refs(folder):

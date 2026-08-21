@@ -176,7 +176,7 @@ def test_s3_uri_builds_experiment_keys():
 def test_resume_checkpoint_is_added_to_main_training_command():
     checkpoint = Path("/workspace/resume/model.eqx")
     command = _prepare_command(
-        ["python", "main.py", "--config", "configs/default.yaml"],
+        ["python", "scripts/train_ppo.py", "--config", "configs/default.yaml"],
         checkpoint,
     )
     assert command[-2:] == ["--init_checkpoint", str(checkpoint)]

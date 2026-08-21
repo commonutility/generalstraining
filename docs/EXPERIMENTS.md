@@ -91,10 +91,10 @@ python scripts/train_belief.py \
 Run the controlled PPO pair:
 
 ```bash
-python main.py --config configs/experiments/s_budget.yaml \
+python scripts/train_ppo.py --config configs/experiments/s_budget.yaml \
   --run_name scratch_seed44 --seed 44
 
-python main.py --config configs/experiments/s_budget.yaml \
+python scripts/train_ppo.py --config configs/experiments/s_budget.yaml \
   --run_name belief_seed44 --seed 44 \
   --init_encoder_checkpoint artifacts/pretraining/belief_s.eqx
 ```

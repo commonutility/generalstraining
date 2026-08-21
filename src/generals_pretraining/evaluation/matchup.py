@@ -7,8 +7,8 @@ import jax.random as jrandom
 from generals.core.game import get_observation
 from generals.core.action import compute_valid_move_mask
 
-from networks import obs_to_array, reset_done_envs
-from evals.agent import Agent
+from generals_pretraining.models import obs_to_array, reset_done_envs
+from generals_pretraining.evaluation.agent import Agent
 
 
 def _keyless(fn):

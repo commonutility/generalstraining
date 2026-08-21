@@ -1,14 +1,10 @@
 """Watch trained models play against each other (or one model against itself).
 
 Usage:
-    python evals/eval_selfplay.py model.eqx --config configs/S.yaml
-    python evals/eval_selfplay.py model_a.eqx model_b.eqx --config configs/S.yaml
-    python evals/eval_selfplay.py model.eqx --config configs/S.yaml --headless --num-games 100
+    python scripts/eval_selfplay.py model.eqx --config configs/S.yaml
+    python scripts/eval_selfplay.py model_a.eqx model_b.eqx --config configs/S.yaml
+    python scripts/eval_selfplay.py model.eqx --config configs/S.yaml --headless --num-games 100
 """
-
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import argparse
 import time
@@ -19,8 +15,8 @@ from generals.core.game import get_observation
 from generals.core.action import compute_valid_move_mask
 from generals.core.env import GeneralsEnv
 
-from networks import obs_to_array
-from evals.agent import Agent
+from generals_pretraining.models import obs_to_array
+from generals_pretraining.evaluation.agent import Agent
 
 
 def _make_eval_env(cfg):

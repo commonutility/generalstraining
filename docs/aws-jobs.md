@@ -100,7 +100,7 @@ only for reviewed infrastructure deployments.
 ```bash
 python jobs/cli.py --profile generals-jobs submit \
   --name spr-pretrain-001 \
-  --command "python main.py --config configs/experiments/s_budget.yaml"
+  --command "python scripts/train_ppo.py --config configs/experiments/s_budget.yaml"
 ```
 
 The command returns after Batch accepts the job and prints the experiment ID,
@@ -121,7 +121,7 @@ Optional controls:
 --resume-from s3://bucket/generals/experiments/old-run/checkpoints/run/model.eqx
 ```
 
-For `main.py`, `--resume-from` downloads the object and supplies it as
+For `scripts/train_ppo.py`, `--resume-from` downloads the object and supplies it as
 `--init_checkpoint`. A custom command can place `{resume_from}` where the local
 downloaded path belongs.
 
@@ -197,7 +197,7 @@ Gate the full run on a one-iteration 80GB-or-larger probe:
 python jobs/cli.py --profile generals-jobs submit \
   --name full-shape-memory-probe \
   --workload-class high_memory_gpu \
-  --command "python main.py --config configs/experiments/L_7d_gae90_8k.yaml --num_iters 1 --save_at 1 --run_name full_shape_80gb_probe"
+  --command "python scripts/train_ppo.py --config configs/experiments/L_7d_gae90_8k.yaml --num_iters 1 --save_at 1 --run_name full_shape_80gb_probe"
 ```
 
 High-memory jobs default to one attempt and a two-hour hard timeout. Batch
@@ -219,7 +219,7 @@ Spot is opt-in for both workload classes:
 python jobs/cli.py --profile generals-jobs submit \
   --name interruptible-training \
   --compute spot \
-  --command "python main.py --config configs/example.yaml"
+  --command "python scripts/train_ppo.py --config configs/example.yaml"
 ```
 
 Use Spot only for commands that write checkpoints to the experiment directory
@@ -243,7 +243,7 @@ Short real training test:
 ```bash
 python jobs/cli.py --profile generals-jobs submit \
   --name ppo-smoke-test \
-  --command "python main.py --config configs/smoke/L_7d_gae90_cpu.yaml --run_name batch_ppo_smoke"
+  --command "python scripts/train_ppo.py --config configs/smoke/L_7d_gae90_cpu.yaml --run_name batch_ppo_smoke"
 ```
 
 After both pass, verify the experiment S3 prefix, CloudWatch logs, Batch job
@@ -321,7 +321,7 @@ python jobs/cli.py --profile generals-jobs submit \
   --name resilient-training \
   --fallback-region us-west-2 \
   --fallback-after-seconds 900 \
-  --command "python main.py --config configs/example.yaml"
+  --command "python scripts/train_ppo.py --config configs/example.yaml"
 ```
 
 The launcher does not duplicate jobs. It keeps the preferred job when it

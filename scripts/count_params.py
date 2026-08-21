@@ -1,10 +1,9 @@
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
 
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-from networks.transformer import HistoryTransformer
+from generals_pretraining.models.transformer import HistoryTransformer
 
 def count_params(depth, embed_dim, n_head=4, ff_factor=2, patch_size=4, pad_to=24, 
                  num_bins=128, value_loss="ce"):

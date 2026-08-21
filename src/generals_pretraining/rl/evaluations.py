@@ -9,13 +9,13 @@ from typing import NamedTuple
 from generals.core.game import get_observation
 from generals.core.action import compute_valid_move_mask
 
-from networks import (
+from generals_pretraining.models import (
     obs_to_array,
     random_action,
     reset_done_envs,
 )
-from evals.agent import Agent
-from evals.ref_eval import ref_eval
+from generals_pretraining.evaluation.agent import Agent
+from generals_pretraining.evaluation.ref_eval import ref_eval
 
 
 @jax.jit(static_argnames=["env", "truncation", "n_maps", "grid_size", "augment_fn", "reset_fn", "greedy_fn"])

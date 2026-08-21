@@ -7,7 +7,7 @@ import jax.random as jrandom
 from generals.core.game import get_observation
 from generals.core.action import compute_valid_move_mask
 
-from networks import (
+from generals_pretraining.models import (
     obs_to_array,
     reset_done_envs,
 )

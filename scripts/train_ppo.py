@@ -11,12 +11,11 @@ import jax.random as jrandom
 import equinox as eqx
 import optax
 
-from generals.core.env import GeneralsEnv
-
-from config import Config
-from networks import get_network_bundle, build_network, load_pretrained_encoder
-from logger import Logger
-from train.ppo import train
+from generals_pretraining.envs import GeneralsEnv
+from generals_pretraining.config import Config
+from generals_pretraining.models import get_network_bundle, build_network, load_pretrained_encoder
+from generals_pretraining.utils.logging import Logger
+from generals_pretraining.rl.ppo import train
 
 
 def parse_args():

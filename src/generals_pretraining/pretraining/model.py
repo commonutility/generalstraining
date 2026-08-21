@@ -4,8 +4,8 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 
-from networks.transformer import HistoryTransformer
-from pretraining.targets import BeliefTargets
+from generals_pretraining.models.transformer import HistoryTransformer
+from generals_pretraining.pretraining.targets import BeliefTargets
 
 
 class BeliefPretrainer(eqx.Module):

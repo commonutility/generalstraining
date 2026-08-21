@@ -12,12 +12,9 @@ Controls:
   V           Toggle full-map visibility (cheat)
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 import argparse
 import math
+import os
 import time
 import threading
 
@@ -36,8 +33,8 @@ from generals.core.rendering import JaxGameAdapter, JaxChannelsAdapter
 from generals.gui.properties import Properties, GuiMode
 from generals.gui.rendering import Renderer
 
-from networks import obs_to_array
-from evals.agent import Agent, _safe_load_config
+from generals_pretraining.models import obs_to_array
+from generals_pretraining.evaluation.agent import Agent, _safe_load_config
 
 # Direction: 0=UP 1=DOWN 2=LEFT 3=RIGHT
 DIR_DELTA = {0: (-1, 0), 1: (1, 0), 2: (0, -1), 3: (0, 1)}
@@ -197,7 +194,7 @@ def run(agent, cfg, game_speed=2.0, seed=42, replay_grid=None, human_player=0):
                 return
             import pickle
             from datetime import datetime
-            log_dir = "evals/eval_human_logs"
+            log_dir = "artifacts/eval_human_logs"
             os.makedirs(log_dir, exist_ok=True)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             log_path = f"{log_dir}/game_{ts}_{games}.pkl"

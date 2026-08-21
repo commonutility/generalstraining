@@ -1,5 +1,5 @@
 [project]
-name = "generals-representation-pretraining"
+name = "generals-pretraining"
 version = "0.1.0"
 description = "Representation pretraining experiments for self-play in Generals.io"
 requires-python = ">=3.11"
@@ -26,12 +26,8 @@ dev = [
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["config", "logger", "main"]
-
 [tool.setuptools.packages.find]
-include = ["evals*", "networks*", "pretraining*", "train*"]
-exclude = ["vendor*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

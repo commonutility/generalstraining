@@ -3,9 +3,9 @@
 import argparse
 
 import jax.random as jrandom
-from generals.core.env import GeneralsEnv
 
-from pretraining.data import collect_belief_dataset, save_belief_dataset
+from generals_pretraining.envs import GeneralsEnv
+from generals_pretraining.pretraining.data import collect_belief_dataset, save_belief_dataset
 
 
 def parse_args():

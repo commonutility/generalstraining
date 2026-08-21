@@ -21,7 +21,6 @@ DEFAULT_STACK = "GeneralsTrainingBatch"
 REGIONAL_STACKS = {
     "us-east-1": DEFAULT_STACK,
     "us-west-2": "GeneralsTrainingBatchUsWest2",
-    "us-east-2": "GeneralsTrainingBatchUsEast2",
 }
 MATRIX_METHODS = {
     # method name -> whether it requires a pretrained encoder checkpoint
@@ -455,7 +454,7 @@ def _matrix_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
         for seed in seeds:
             run_name = _sanitize_name(f"{args.run_prefix}_{method}_seed{seed}").replace("-", "_")
             command = [
-                "python", "main.py",
+                "python", "scripts/train_ppo.py",
                 "--config", args.config,
                 "--seed", str(seed),
                 "--run_name", run_name,

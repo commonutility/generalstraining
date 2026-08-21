@@ -11,10 +11,10 @@ import jax.random as jrandom
 import numpy as np
 import optax
 
-from config import Config
-from networks import build_network
-from pretraining.model import BeliefPretrainer, belief_loss
-from pretraining.targets import BeliefTargets
+from generals_pretraining.config import Config
+from generals_pretraining.models import build_network
+from generals_pretraining.pretraining.model import BeliefPretrainer, belief_loss
+from generals_pretraining.pretraining.targets import BeliefTargets
 
 
 def parse_args():

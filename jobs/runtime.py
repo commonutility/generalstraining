@@ -107,7 +107,7 @@ def _prepare_command(command: list[str], resume_path: Path | None) -> list[str]:
         return command
     prepared = [str(resume_path) if token == "{resume_from}" else token for token in command]
     has_placeholder = prepared != command
-    is_main_training = any(Path(token).name == "main.py" for token in prepared)
+    is_main_training = any(Path(token).name == "train_ppo.py" for token in prepared)
     if is_main_training and not has_placeholder and "--init_checkpoint" not in prepared:
         prepared.extend(["--init_checkpoint", str(resume_path)])
     return prepared
