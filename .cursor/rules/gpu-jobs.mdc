@@ -6,9 +6,16 @@ alwaysApply: true
 # GPU Training Jobs
 
 - Never provision or terminate EC2 instances directly for normal training jobs.
-- Submit GPU work through `python jobs/cli.py --profile generals-jobs submit ...`.
+- Submit a single GPU job through `python jobs/cli.py --profile generals-jobs submit ...`.
+- Submit multi-seed or multi-method experiments through `submit-matrix` (round-robins
+  jobs across regions; supports `--seeds`, `--methods`, `--num-iters`, `--save-at`,
+  and `--encoder-checkpoint` for pretrain runs).
+- When overriding `--num-iters`, also pass `--save-at` milestones that fit within it;
+  otherwise config validation fails at job startup.
 - Monitor jobs through the CLI's `status` and `logs` commands; do not SSH into instances.
 - Stop jobs through the CLI's `cancel` command.
-- Use `us-east-1` as primary and `us-west-2` only as fallback; do not submit in `us-east-2`.
+- Use `us-east-1` as primary; `us-west-2` and `us-east-2` are deployed fallbacks.
 - Use the S3 experiment path printed by `submit` for checkpoints, metrics, and results.
+- Infrastructure changes (new image tag, instance types, quotas) go through
+  `infra/aws` CDK with the admin profile; normal experiments never need this.
 - Read `docs/aws-jobs.md` for workload classes, Spot usage, and regional fallback.
