@@ -296,6 +296,17 @@ cd infra/aws
   --parameters GeneralsTrainingBatchUsWest2:ImageTag=<printed-image-tag>
 ```
 
+A second fallback region, `us-east-2`, mirrors the `us-west-2` design with two
+differences: its Batch job definition pulls the training image cross-region
+from the primary `us-east-1` repository (no regional image copy is needed),
+and its high-memory compute environments list only `g7e.2xlarge` and
+`p5.4xlarge` because `p4de.24xlarge` is not offered in `us-east-2`. Deploy it
+with `-c enableEast2=true`, the `artifactBucketName` context, a
+`primaryRepositoryArn` context pointing at the `us-east-1` training
+repository ARN, and `--parameters GeneralsTrainingBatchUsEast2:ImageTag=<tag>`.
+The G On-Demand quota there was approved at 32 vCPUs (four concurrent
+`g7e.2xlarge` jobs) on 2026-08-21.
+
 ECR replication configuration is registry-wide, not repository-owned.
 `build_and_push.sh` therefore preserves existing rules and adds a
 `generals-training` prefix rule from `us-east-1` to `us-west-2` only when it is
