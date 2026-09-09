@@ -8,10 +8,12 @@ alwaysApply: true
 - Never provision or terminate EC2 instances directly for normal training jobs.
 - Submit a single GPU job through `python jobs/cli.py --profile generals-jobs submit ...`.
 - Submit multi-seed or multi-method experiments through `submit-matrix` (round-robins
-  jobs across regions; supports `--seeds`, `--methods`, `--num-iters`, `--save-at`,
-  and `--encoder-checkpoint` for pretrain runs).
+ jobs across regions; supports `--seeds`, `--methods`, `--num-iters`, `--save-at`,
+ `--encoder-checkpoint` for pretrain runs, and `--resume-checkpoints SEED=S3URI ...`
+ with `--iteration-offset` to continue runs from full milestone checkpoints).
 - When overriding `--num-iters`, also pass `--save-at` milestones that fit within it;
-  otherwise config validation fails at job startup.
+ otherwise config validation fails at job startup. `--save-at` is in global
+ iterations: with `--iteration-offset N` it must lie in (N, N + num_iters].
 - Monitor jobs through the CLI's `status` and `logs` commands; do not SSH into instances.
 - Stop jobs through the CLI's `cancel` command.
 - Use `us-east-1` as primary; `us-west-2` and `us-east-2` are deployed fallbacks.

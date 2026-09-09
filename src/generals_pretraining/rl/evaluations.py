@@ -128,13 +128,17 @@ class EvalCtx(NamedTuple):
 
 
 def periodic_eval(it, cfg, eval_freq, network, ema_params, static,
-                  eval_env, eval_pool, ev, logger, key, last_eval_wr):
+                  eval_env, eval_pool, ev, logger, key, last_eval_wr,
+                  iter_offset=0):
     """Eval vs random (+ reference ELO) on eval iters; logs results.
 
     Returns (eval_ran, last_eval_wr, key). last_eval_wr updates only when the
-    vs-random eval runs (it drives curriculum advancement).
+    vs-random eval runs (it drives curriculum advancement). `it` is the local
+    loop iteration (drives eval scheduling); `iter_offset` shifts logged
+    iteration numbers to global values for resumed runs.
     """
     eval_ran = False
+    log_it = it + iter_offset
     if it == 0 or (it + 1) % eval_freq == 0:
         key, eval_key = jrandom.split(key)
         n_maps = cfg.eval_games // 2
@@ -148,8 +152,8 @@ def periodic_eval(it, cfg, eval_freq, network, ema_params, static,
         last_eval_wr = ew / max(edone, 1)
         eval_ran = True
         print(f"  EVAL: {ew}W/{el}L/{ed}D ({last_eval_wr * 100:.0f}%) greedy vs random | Maps({n_maps}): {wb}WB/{lb}LB/{sp}S")
-        logger.log_eval(it, ew, el, ed, edone)
-        logger.log(it, {
+        logger.log_eval(log_it, ew, el, ed, edone)
+        logger.log(log_it, {
             "eval/won_both": wb / max(n_maps, 1),
             "eval/lost_both": lb / max(n_maps, 1),
             "eval/split": sp / max(n_maps, 1),
@@ -174,9 +178,9 @@ def periodic_eval(it, cfg, eval_freq, network, ema_params, static,
         ref_names = [a.name for a in ev.ref_agents]
         max_ref_elo = max(ratings[n] for n in ref_names)
         if cfg.eval_ema_only:
-            print(f"  REF_EVAL ELO (iter {it+1}): ema={ratings['_ema']:.0f}")
+            print(f"  REF_EVAL ELO (iter {log_it+1}): ema={ratings['_ema']:.0f}")
         else:
-            print(f"  REF_EVAL ELO (iter {it+1}): current={ratings['_current']:.0f} ema={ratings['_ema']:.0f}")
+            print(f"  REF_EVAL ELO (iter {log_it+1}): current={ratings['_current']:.0f} ema={ratings['_ema']:.0f}")
         ref_metrics = {
             "ref_elo/ema": ratings["_ema"],
             "ref_elo/ema_vs_max": ratings["_ema"] - max_ref_elo,
@@ -192,6 +196,6 @@ def periodic_eval(it, cfg, eval_freq, network, ema_params, static,
                 wr = w / tot if tot > 0 else 0.0
                 tag = "current" if cand_tag == "_current" else "ema"
                 ref_metrics[f"ref_wr/{tag}_vs_{rn}"] = wr
-        logger.log(it, ref_metrics)
+        logger.log(log_it, ref_metrics)
 
     return eval_ran, last_eval_wr, key

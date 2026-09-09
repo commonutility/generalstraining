@@ -7,6 +7,7 @@ from jobs.cli import (
     WORKLOAD_CLASSES,
     SubmittedJob,
     _cancel_stalled_job_for_fallback,
+    _ema_checkpoint_uri,
     _job_safeguards,
     _job_target,
     _matrix_plan,
@@ -188,6 +189,34 @@ def test_resume_placeholder_supports_custom_commands():
     assert command == ["python", "custom.py", str(checkpoint)]
 
 
+def test_resume_substitutes_full_and_ema_placeholders():
+    checkpoint = Path("/workspace/resume/run_2000.eqx")
+    ema = Path("/workspace/resume/run_ema_2000.eqx")
+    command = _prepare_command(
+        [
+            "python", "scripts/train_ppo.py",
+            "--init_checkpoint", "{resume_from}",
+            "--ema_checkpoint", "{resume_ema}",
+        ],
+        checkpoint,
+        ema,
+    )
+    assert command == [
+        "python", "scripts/train_ppo.py",
+        "--init_checkpoint", str(checkpoint),
+        "--ema_checkpoint", str(ema),
+    ]
+
+
+def test_ema_checkpoint_uri_is_derived_from_milestone_name():
+    assert _ema_checkpoint_uri(
+        "s3://bucket/experiments/run-1/checkpoints/run/run_2000.eqx"
+    ) == "s3://bucket/experiments/run-1/checkpoints/run/run_ema_2000.eqx"
+
+    with pytest.raises(ValueError, match="cannot derive the EMA checkpoint URI"):
+        _ema_checkpoint_uri("s3://bucket/checkpoints/run_final.eqx")
+
+
 def _matrix_args(**overrides):
     defaults = dict(
         run_prefix="exp3x3",
@@ -245,3 +274,59 @@ def test_matrix_pretrain_requires_encoder_checkpoint():
 def test_matrix_rejects_regions_without_a_deployed_stack():
     with pytest.raises(ValueError, match="no deployed Batch stack"):
         _matrix_plan(_matrix_args(regions="us-east-2"))
+
+
+_RESUME_CHECKPOINTS = [
+    "44=s3://bucket/exp/run44/checkpoints/run44/run44_2000.eqx",
+    "45=s3://bucket/exp/run45/checkpoints/run45/run45_2000.eqx",
+    "46=s3://bucket/exp/run46/checkpoints/run46/run46_2000.eqx",
+]
+
+
+def test_matrix_resume_adds_checkpoints_ema_and_offset_per_seed():
+    plan = _matrix_plan(
+        _matrix_args(
+            num_iters=6000,
+            resume_checkpoints=_RESUME_CHECKPOINTS,
+            iteration_offset=2000,
+        )
+    )
+
+    assert len(plan) == 3
+    for spec in plan:
+        seed = spec["seed"]
+        assert spec["resume_from"] == f"s3://bucket/exp/run{seed}/checkpoints/run{seed}/run{seed}_2000.eqx"
+        assert spec["resume_ema_from"] == f"s3://bucket/exp/run{seed}/checkpoints/run{seed}/run{seed}_ema_2000.eqx"
+        command = spec["command"]
+        assert command[command.index("--init_checkpoint") + 1] == "{resume_from}"
+        assert command[command.index("--ema_checkpoint") + 1] == "{resume_ema}"
+        assert command[command.index("--iteration_offset") + 1] == "2000"
+
+
+def test_matrix_resume_requires_iteration_offset_and_vice_versa():
+    with pytest.raises(ValueError, match="requires --iteration-offset"):
+        _matrix_plan(_matrix_args(resume_checkpoints=_RESUME_CHECKPOINTS))
+    with pytest.raises(ValueError, match="requires --resume-checkpoints"):
+        _matrix_plan(_matrix_args(iteration_offset=2000))
+
+
+def test_matrix_resume_requires_an_entry_for_every_seed():
+    with pytest.raises(ValueError, match=r"missing entries for seeds \[46\]"):
+        _matrix_plan(
+            _matrix_args(
+                resume_checkpoints=_RESUME_CHECKPOINTS[:2],
+                iteration_offset=2000,
+            )
+        )
+
+
+def test_matrix_resume_rejects_the_pretrain_method():
+    with pytest.raises(ValueError, match="only supports the scratch method"):
+        _matrix_plan(
+            _matrix_args(
+                methods="scratch,pretrain",
+                encoder_checkpoint="s3://bucket/encoders/belief_seed{seed}.eqx",
+                resume_checkpoints=_RESUME_CHECKPOINTS,
+                iteration_offset=2000,
+            )
+        )

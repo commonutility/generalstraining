@@ -157,6 +157,8 @@ class Config:
         """Normalize and validate values that involve multiple config fields."""
         if self.ckpt_every < 0 or self.save_every < 0:
             raise ValueError("ckpt_every and save_every must be >= 0")
+        if self.iteration_offset < 0:
+            raise ValueError("iteration_offset must be >= 0")
 
         if self.save_at is None:
             return
@@ -167,10 +169,15 @@ class Config:
             raw_save_at = self.save_at
         save_at = sorted({int(iteration) for iteration in raw_save_at})
 
-        invalid = [iteration for iteration in save_at if iteration <= 0 or iteration > self.num_iters]
+        # save_at is in global iterations: a resumed run with iteration_offset=N
+        # covers global iterations N+1 .. N+num_iters.
+        first = self.iteration_offset + 1
+        last = self.iteration_offset + self.num_iters
+        invalid = [iteration for iteration in save_at if iteration < first or iteration > last]
         if invalid:
             raise ValueError(
-                f"save_at iterations must be between 1 and num_iters ({self.num_iters}); got {invalid}"
+                f"save_at iterations must be between {first} and {last} "
+                f"(iteration_offset={self.iteration_offset}, num_iters={self.num_iters}); got {invalid}"
             )
         object.__setattr__(self, "save_at", save_at)
 

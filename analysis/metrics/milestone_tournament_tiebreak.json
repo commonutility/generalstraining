@@ -1,0 +1,241 @@
+{
+  "h2h": {
+    "s44@1000": {
+      "s44@2000": {
+        "wins": 247,
+        "losses": 264,
+        "draws": 1,
+        "real_wins": 0,
+        "real_losses": 0
+      },
+      "s45@1000": {
+        "wins": 75,
+        "losses": 437,
+        "draws": 0,
+        "real_wins": 1,
+        "real_losses": 7
+      },
+      "s45@2000": {
+        "wins": 46,
+        "losses": 466,
+        "draws": 0,
+        "real_wins": 1,
+        "real_losses": 0
+      },
+      "s46@1000": {
+        "wins": 67,
+        "losses": 445,
+        "draws": 0,
+        "real_wins": 2,
+        "real_losses": 5
+      },
+      "s46@2000": {
+        "wins": 56,
+        "losses": 456,
+        "draws": 0,
+        "real_wins": 0,
+        "real_losses": 7
+      }
+    },
+    "s44@2000": {
+      "s44@1000": {
+        "wins": 264,
+        "losses": 247,
+        "draws": 1,
+        "real_wins": 0,
+        "real_losses": 0
+      },
+      "s45@1000": {
+        "wins": 69,
+        "losses": 442,
+        "draws": 1,
+        "real_wins": 2,
+        "real_losses": 7
+      },
+      "s45@2000": {
+        "wins": 43,
+        "losses": 466,
+        "draws": 3,
+        "real_wins": 0,
+        "real_losses": 0
+      },
+      "s46@1000": {
+        "wins": 57,
+        "losses": 454,
+        "draws": 1,
+        "real_wins": 3,
+        "real_losses": 4
+      },
+      "s46@2000": {
+        "wins": 48,
+        "losses": 463,
+        "draws": 1,
+        "real_wins": 1,
+        "real_losses": 10
+      }
+    },
+    "s45@1000": {
+      "s44@1000": {
+        "wins": 437,
+        "losses": 75,
+        "draws": 0,
+        "real_wins": 7,
+        "real_losses": 1
+      },
+      "s44@2000": {
+        "wins": 442,
+        "losses": 69,
+        "draws": 1,
+        "real_wins": 7,
+        "real_losses": 2
+      },
+      "s45@2000": {
+        "wins": 241,
+        "losses": 271,
+        "draws": 0,
+        "real_wins": 6,
+        "real_losses": 8
+      },
+      "s46@1000": {
+        "wins": 244,
+        "losses": 268,
+        "draws": 0,
+        "real_wins": 7,
+        "real_losses": 9
+      },
+      "s46@2000": {
+        "wins": 210,
+        "losses": 302,
+        "draws": 0,
+        "real_wins": 3,
+        "real_losses": 19
+      }
+    },
+    "s45@2000": {
+      "s44@1000": {
+        "wins": 466,
+        "losses": 46,
+        "draws": 0,
+        "real_wins": 0,
+        "real_losses": 1
+      },
+      "s44@2000": {
+        "wins": 466,
+        "losses": 43,
+        "draws": 3,
+        "real_wins": 0,
+        "real_losses": 0
+      },
+      "s45@1000": {
+        "wins": 271,
+        "losses": 241,
+        "draws": 0,
+        "real_wins": 8,
+        "real_losses": 6
+      },
+      "s46@1000": {
+        "wins": 221,
+        "losses": 291,
+        "draws": 0,
+        "real_wins": 10,
+        "real_losses": 12
+      },
+      "s46@2000": {
+        "wins": 209,
+        "losses": 303,
+        "draws": 0,
+        "real_wins": 7,
+        "real_losses": 21
+      }
+    },
+    "s46@1000": {
+      "s44@1000": {
+        "wins": 445,
+        "losses": 67,
+        "draws": 0,
+        "real_wins": 5,
+        "real_losses": 2
+      },
+      "s44@2000": {
+        "wins": 454,
+        "losses": 57,
+        "draws": 1,
+        "real_wins": 4,
+        "real_losses": 3
+      },
+      "s45@1000": {
+        "wins": 268,
+        "losses": 244,
+        "draws": 0,
+        "real_wins": 9,
+        "real_losses": 7
+      },
+      "s45@2000": {
+        "wins": 291,
+        "losses": 221,
+        "draws": 0,
+        "real_wins": 12,
+        "real_losses": 10
+      },
+      "s46@2000": {
+        "wins": 209,
+        "losses": 303,
+        "draws": 0,
+        "real_wins": 8,
+        "real_losses": 21
+      }
+    },
+    "s46@2000": {
+      "s44@1000": {
+        "wins": 456,
+        "losses": 56,
+        "draws": 0,
+        "real_wins": 7,
+        "real_losses": 0
+      },
+      "s44@2000": {
+        "wins": 463,
+        "losses": 48,
+        "draws": 1,
+        "real_wins": 10,
+        "real_losses": 1
+      },
+      "s45@1000": {
+        "wins": 302,
+        "losses": 210,
+        "draws": 0,
+        "real_wins": 19,
+        "real_losses": 3
+      },
+      "s45@2000": {
+        "wins": 303,
+        "losses": 209,
+        "draws": 0,
+        "real_wins": 21,
+        "real_losses": 7
+      },
+      "s46@1000": {
+        "wins": 303,
+        "losses": 209,
+        "draws": 0,
+        "real_wins": 21,
+        "real_losses": 8
+      }
+    }
+  },
+  "elo": {
+    "s44@1000": 1285.5215635645109,
+    "s44@2000": 1283.301812955838,
+    "s45@1000": 1580.9926616766659,
+    "s45@2000": 1596.63995038665,
+    "s46@1000": 1605.3284704707585,
+    "s46@2000": 1648.2155409455768
+  },
+  "num_games_per_side": 256,
+  "truncation": 2048,
+  "pooled_2000_vs_1000": {
+    "wins": 2409,
+    "losses": 2196,
+    "draws": 3
+  }
+}

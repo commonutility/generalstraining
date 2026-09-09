@@ -101,6 +101,31 @@ def test_averagejoe_8k_uses_exact_checkpoint_milestones():
     assert 2 * env_interactions == 4_194_304_000
 
 
+def test_resumed_run_save_at_uses_global_iterations():
+    resumed = Config.from_yaml("configs/experiments/L_7d_gae90_8k.yaml")
+    object.__setattr__(resumed, "iteration_offset", 2000)
+    object.__setattr__(resumed, "num_iters", 6000)
+    object.__setattr__(resumed, "save_at", [4000, 8000])
+    resumed.validate()
+    assert resumed.save_at == [4000, 8000]
+
+    # The training loop matches save_at against local iteration + offset.
+    saved = [
+        it + resumed.iteration_offset
+        for it in range(1, resumed.num_iters + 1)
+        if should_save_checkpoint(it + resumed.iteration_offset, resumed.save_every, resumed.save_at)
+    ]
+    assert saved == [4000, 8000]
+
+    # Milestones at or before the resume point (or past the end) are unreachable.
+    import pytest
+
+    for bad in ([2000], [9000]):
+        object.__setattr__(resumed, "save_at", bad)
+        with pytest.raises(ValueError, match="save_at iterations must be between 2001 and 8000"):
+            resumed.validate()
+
+
 def test_periodic_and_exact_checkpoint_schedules_are_additive():
     saved = [
         iteration

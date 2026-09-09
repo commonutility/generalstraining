@@ -102,13 +102,27 @@ def _download_resume(client: Any, uri: str, root: Path) -> Path:
     return destination
 
 
-def _prepare_command(command: list[str], resume_path: Path | None) -> list[str]:
-    if resume_path is None:
+def _prepare_command(
+    command: list[str],
+    resume_path: Path | None,
+    resume_ema_path: Path | None = None,
+) -> list[str]:
+    substitutions: dict[str, str] = {}
+    if resume_path is not None:
+        substitutions["{resume_from}"] = str(resume_path)
+    if resume_ema_path is not None:
+        substitutions["{resume_ema}"] = str(resume_ema_path)
+    if not substitutions:
         return command
-    prepared = [str(resume_path) if token == "{resume_from}" else token for token in command]
+    prepared = [substitutions.get(token, token) for token in command]
     has_placeholder = prepared != command
     is_main_training = any(Path(token).name == "train_ppo.py" for token in prepared)
-    if is_main_training and not has_placeholder and "--init_checkpoint" not in prepared:
+    if (
+        resume_path is not None
+        and is_main_training
+        and not has_placeholder
+        and "--init_checkpoint" not in prepared
+    ):
         prepared.extend(["--init_checkpoint", str(resume_path)])
     return prepared
 
@@ -138,12 +152,17 @@ def main() -> int:
     sync = ArtifactSync(s3, S3Uri.parse(destination_value), root)
 
     resume_path = None
+    resume_ema_path = None
     resume_from = os.environ.get("RESUME_FROM")
+    resume_ema_from = os.environ.get("RESUME_EMA_FROM")
     try:
         if resume_from:
             resume_path = _download_resume(s3, resume_from, root)
             print(f"Downloaded resume checkpoint to {resume_path}", flush=True)
-        command = _prepare_command(args.command, resume_path)
+        if resume_ema_from:
+            resume_ema_path = _download_resume(s3, resume_ema_from, root)
+            print(f"Downloaded EMA resume checkpoint to {resume_ema_path}", flush=True)
+        command = _prepare_command(args.command, resume_path, resume_ema_path)
         sync.put_json(
             "config/job.json",
             {
@@ -153,6 +172,7 @@ def main() -> int:
                 "experiment_id": experiment_id,
                 "image": os.environ.get("CONTAINER_IMAGE"),
                 "resume_from": resume_from,
+                "resume_ema_from": resume_ema_from,
                 "started_at": _utc_now(),
             },
         )
@@ -163,6 +183,8 @@ def main() -> int:
     child_env = os.environ.copy()
     if resume_path is not None:
         child_env["RESUME_FROM_LOCAL"] = str(resume_path)
+    if resume_ema_path is not None:
+        child_env["RESUME_EMA_FROM_LOCAL"] = str(resume_ema_path)
 
     print(f"Experiment: {experiment_id}", flush=True)
     print(f"Artifacts: {destination_value}", flush=True)

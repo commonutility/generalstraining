@@ -28,6 +28,43 @@ MATRIX_METHODS = {
     "pretrain": True,
 }
 MATRIX_DEFAULT_TIMEOUT_SECONDS = 259200  # 72 hours; ~2k iterations at 100.5s each is ~56h
+RESUME_OVERLAY_BOOTSTRAP = """\
+import os
+import pathlib
+import sys
+import zipfile
+
+import boto3
+
+
+def download(uri, destination):
+    bucket, key = uri[5:].split("/", 1)
+    boto3.client("s3").download_file(bucket, key, str(destination))
+
+
+full_checkpoint, ema_uri, overlay_uri, train_script, *train_args = sys.argv[1:]
+root = pathlib.Path("/tmp/generals-resume-overlay")
+root.mkdir(parents=True, exist_ok=True)
+archive = root / "source.zip"
+ema_checkpoint = root / pathlib.Path(ema_uri).name
+download(overlay_uri, archive)
+download(ema_uri, ema_checkpoint)
+with zipfile.ZipFile(archive) as source:
+    source.extractall(root)
+os.environ["PYTHONPATH"] = str(root / "src") + os.pathsep + os.environ.get("PYTHONPATH", "")
+os.execv(
+    sys.executable,
+    [
+        sys.executable,
+        train_script,
+        *train_args,
+        "--init_checkpoint",
+        full_checkpoint,
+        "--ema_checkpoint",
+        str(ema_checkpoint),
+    ],
+)
+"""
 WORKLOAD_CLASSES = {
     "small_gpu": {
         "cpus": 4,
@@ -255,6 +292,8 @@ def _submit_once(
     )
     if args.resume_from:
         environment["RESUME_FROM"] = args.resume_from
+    if getattr(args, "resume_ema_from", None):
+        environment["RESUME_EMA_FROM"] = args.resume_ema_from
     if fallback_from_job_id:
         environment["FALLBACK_FROM_JOB_ID"] = fallback_from_job_id
 
@@ -417,6 +456,33 @@ def submit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ema_checkpoint_uri(uri: str) -> str:
+    """Derive the EMA checkpoint URI saved beside a full milestone checkpoint.
+
+    The trainer writes `<run>_<iter>.eqx` (network + optimizer state) and
+    `<run>_ema_<iter>.eqx` side by side at each save_at milestone.
+    """
+    match = re.fullmatch(r"(.+)_(\d+)\.eqx", uri)
+    if not match:
+        raise ValueError(
+            f"cannot derive the EMA checkpoint URI from {uri!r}; "
+            "expected an s3://.../<run>_<iteration>.eqx milestone checkpoint"
+        )
+    return f"{match.group(1)}_ema_{match.group(2)}.eqx"
+
+
+def _parse_resume_checkpoints(values: list[str] | None) -> dict[int, str]:
+    result: dict[int, str] = {}
+    for value in values or []:
+        seed_str, separator, uri = value.partition("=")
+        if not separator or not seed_str.strip().isdigit() or not uri.startswith("s3://"):
+            raise ValueError(
+                f"--resume-checkpoints entries must be SEED=s3://... : {value!r}"
+            )
+        result[int(seed_str)] = uri
+    return result
+
+
 def _matrix_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
     """Expand {method x seed} into concrete job specs, round-robined over regions."""
     methods = [m.strip() for m in args.methods.split(",") if m.strip()]
@@ -448,6 +514,28 @@ def _matrix_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
             "pretrain method"
         )
 
+    resume_map = _parse_resume_checkpoints(getattr(args, "resume_checkpoints", None))
+    iteration_offset = getattr(args, "iteration_offset", None)
+    source_overlay = getattr(args, "source_overlay", None)
+    if resume_map and iteration_offset is None:
+        raise ValueError(
+            "--resume-checkpoints requires --iteration-offset (the global iteration "
+            "count already completed by the checkpoints)"
+        )
+    if iteration_offset is not None and not resume_map:
+        raise ValueError("--iteration-offset requires --resume-checkpoints")
+    if source_overlay and not resume_map:
+        raise ValueError("--source-overlay requires --resume-checkpoints")
+    if resume_map:
+        if any(MATRIX_METHODS[m] for m in methods):
+            raise ValueError(
+                "--resume-checkpoints only supports the scratch method; "
+                "init_checkpoint and init_encoder_checkpoint are mutually exclusive"
+            )
+        missing = [seed for seed in seeds if seed not in resume_map]
+        if missing:
+            raise ValueError(f"--resume-checkpoints is missing entries for seeds {missing}")
+
     plan: list[dict[str, Any]] = []
     index = 0
     for method in methods:
@@ -464,11 +552,41 @@ def _matrix_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
             if getattr(args, "save_at", None):
                 command += ["--save_at", *(str(i) for i in args.save_at)]
             resume_from = None
+            resume_ema_from = None
             if MATRIX_METHODS[method]:
                 # jobs/runtime.py downloads RESUME_FROM and substitutes the local
                 # path for the {resume_from} token before launching training.
                 resume_from = args.encoder_checkpoint.replace("{seed}", str(seed))
                 command += ["--init_encoder_checkpoint", "{resume_from}"]
+            elif resume_map:
+                # Resume weights + optimizer state and the matching EMA weights;
+                # iteration_offset keeps schedules, logging, and save_at global.
+                resume_from = resume_map[seed]
+                ema_uri = _ema_checkpoint_uri(resume_from)
+                if source_overlay:
+                    # Compatibility path for a deployed image that predates the
+                    # resume-bookkeeping changes. The old runtime downloads the
+                    # full checkpoint; this bootstrap downloads the EMA and a
+                    # small source overlay before execing the trainer.
+                    command = [
+                        "python",
+                        "-c",
+                        RESUME_OVERLAY_BOOTSTRAP,
+                        "{resume_from}",
+                        ema_uri,
+                        source_overlay,
+                        "scripts/train_ppo.py",
+                        *command[2:],
+                        "--iteration_offset",
+                        str(iteration_offset),
+                    ]
+                else:
+                    resume_ema_from = ema_uri
+                    command += [
+                        "--init_checkpoint", "{resume_from}",
+                        "--ema_checkpoint", "{resume_ema}",
+                        "--iteration_offset", str(iteration_offset),
+                    ]
             plan.append(
                 {
                     "method": method,
@@ -477,6 +595,7 @@ def _matrix_plan(args: argparse.Namespace) -> list[dict[str, Any]]:
                     "run_name": run_name,
                     "command": command,
                     "resume_from": resume_from,
+                    "resume_ema_from": resume_ema_from,
                 }
             )
             index += 1
@@ -495,7 +614,10 @@ def submit_matrix(args: argparse.Namespace) -> int:
             )
             print(f"           command: {shlex.join(spec['command'])}")
             if spec["resume_from"]:
-                print(f"           encoder: {spec['resume_from']}")
+                label = "resume" if spec["resume_ema_from"] else "encoder"
+                print(f"           {label}: {spec['resume_from']}")
+            if spec["resume_ema_from"]:
+                print(f"           resume EMA: {spec['resume_ema_from']}")
         return 0
 
     sessions: dict[str, boto3.Session] = {}
@@ -515,6 +637,7 @@ def submit_matrix(args: argparse.Namespace) -> int:
             timeout_seconds=args.timeout_seconds,
             env=list(args.env),
             resume_from=spec["resume_from"],
+            resume_ema_from=spec["resume_ema_from"],
         )
         experiment_id = _sanitize_name(_experiment_id(spec["run_name"]))
         submission = _submit_once(
@@ -669,6 +792,10 @@ def _parser() -> argparse.ArgumentParser:
     submit_parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
     submit_parser.add_argument("--resume-from", help="S3 object URI for a checkpoint")
     submit_parser.add_argument(
+        "--resume-ema-from",
+        help="S3 object URI for an EMA checkpoint (substituted for {resume_ema})",
+    )
+    submit_parser.add_argument(
         "--fallback-region",
         help="Cancel a capacity-stalled preferred job and resubmit once in this region",
     )
@@ -710,6 +837,24 @@ def _parser() -> argparse.ArgumentParser:
     matrix_parser.add_argument(
         "--encoder-checkpoint",
         help="S3 URI of the pretrained encoder for the pretrain method; {seed} is substituted",
+    )
+    matrix_parser.add_argument(
+        "--resume-checkpoints",
+        nargs="+",
+        metavar="SEED=S3URI",
+        help="Per-seed full milestone checkpoints (network + optimizer state) to resume "
+        "from; the matching _ema_ checkpoint URI is derived automatically",
+    )
+    matrix_parser.add_argument(
+        "--iteration-offset",
+        type=int,
+        help="Global iterations already completed by --resume-checkpoints; keeps "
+        "schedules, logged iterations, and --save-at milestones global",
+    )
+    matrix_parser.add_argument(
+        "--source-overlay",
+        help="S3 URI of a source zip to apply before a resumed run; compatibility "
+        "path for a deployed image that predates resume bookkeeping",
     )
     matrix_parser.add_argument("--workload-class", choices=sorted(WORKLOAD_CLASSES), default="high_memory_gpu")
     matrix_parser.add_argument("--compute", choices=("ondemand", "spot"), default="ondemand")

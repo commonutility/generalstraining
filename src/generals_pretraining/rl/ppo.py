@@ -425,7 +425,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         eval_freq = cfg.eval_every_after if (cfg.eval_every_after and on_last_stage) else cfg.eval_every
         eval_ran, last_eval_wr, key = periodic_eval(
             it, cfg, eval_freq, network, ema_params, static,
-            eval_env, eval_pool, ev, logger, key, last_eval_wr)
+            eval_env, eval_pool, ev, logger, key, last_eval_wr,
+            iter_offset=iter_offset)
 
         t0 = time.time()
 
@@ -435,7 +436,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
             if last_eval_wr >= next_stage.win_rate_threshold:
                 current_stage_idx += 1
                 stage = next_stage
-                print(f"CURRICULUM stage {current_stage_idx}/{len(curriculum_stages)-1} (iter {it}, wr={last_eval_wr:.0%}>={stage.win_rate_threshold:.0%}): "
+                print(f"CURRICULUM stage {current_stage_idx}/{len(curriculum_stages)-1} (iter {it + iter_offset}, wr={last_eval_wr:.0%}>={stage.win_rate_threshold:.0%}): "
                       f"dist={stage.min_generals_distance}-{stage.max_generals_distance}")
                 # Update env attributes — pool is traced so no rollout recompile needed
                 env.min_generals_distance = stage.min_generals_distance
@@ -596,7 +597,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         wall = int(time.time() - train_start)
         hh, mm, ss = wall // 3600, wall % 3600 // 60, wall % 60
         print(
-            f"[{hh:02d}:{mm:02d}:{ss:02d}] Iter {it + 1:3d}/{cfg.num_iters} | Loss: {float(m['total_loss']):.4f} | "
+            f"[{hh:02d}:{mm:02d}:{ss:02d}] Iter {it + 1 + iter_offset:3d}/{cfg.num_iters + iter_offset} | Loss: {float(m['total_loss']):.4f} | "
             f"PG: {float(m['policy_loss']):.4f} | "
             f"VF: {float(m['value_loss']):.4f} | "
             f"Ent: {float(m['entropy']):.3f} | "
@@ -645,8 +646,8 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
             "train/draw_rate": dr,
             "train/mean_owned_cities": mean_owned_cities,
             "train/sps": sps,
-            "train/env_interactions": (it + 1) * cfg.num_envs * cfg.num_steps * num_devices,
-            "train/agent_interactions": 2 * (it + 1) * cfg.num_envs * cfg.num_steps * num_devices,
+            "train/env_interactions": (it + 1 + iter_offset) * cfg.num_envs * cfg.num_steps * num_devices,
+            "train/agent_interactions": 2 * (it + 1 + iter_offset) * cfg.num_envs * cfg.num_steps * num_devices,
             "train/ent_coef": current_ent_coef,
             "train/lr": current_lr,
             "train/gamma": current_gamma,
@@ -662,7 +663,7 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
                 "train/max_old_lp": m["max_old_lp"],
                 "train/epochs_used": epochs_used,
             })
-        logger.log(it + 1, log_metrics)
+        logger.log(it + 1 + iter_offset, log_metrics)
 
         # Update EMA params
         current_params = jax.tree.map(lambda x: x[0], params)
@@ -673,19 +674,21 @@ def train(env, pool, network, optimizer, opt_state, logger, key, cfg, bundle, ck
         # Extract single-device network for checkpointing
         network = _get_network()
 
-        completed_iterations = it + 1
+        # Global iteration count: local progress plus iterations completed by the
+        # resumed checkpoint, so save_at milestones and filenames stay global.
+        completed_iterations = it + 1 + iter_offset
         full_save_due = should_save_checkpoint(completed_iterations, cfg.save_every, cfg.save_at)
         ema_save_due = should_save_checkpoint(completed_iterations, cfg.ckpt_every) or full_save_due
 
         if ema_save_due and not full_save_due:
-            ema_ckpt_path = os.path.join(ckpt_dir, f"{run_name}_ema_{it + 1}.eqx")
+            ema_ckpt_path = os.path.join(ckpt_dir, f"{run_name}_ema_{completed_iterations}.eqx")
             eqx.tree_serialise_leaves(ema_ckpt_path, eqx.combine(ema_params, static))
 
         if full_save_due:
-            path = os.path.join(ckpt_dir, f"{run_name}_{it + 1}.eqx")
+            path = os.path.join(ckpt_dir, f"{run_name}_{completed_iterations}.eqx")
             eqx.tree_serialise_leaves(path, (network, _get_opt_state()))
             ema_network = eqx.combine(ema_params, static)
-            ema_path = os.path.join(ckpt_dir, f"{run_name}_ema_{it + 1}.eqx")
+            ema_path = os.path.join(ckpt_dir, f"{run_name}_ema_{completed_iterations}.eqx")
             eqx.tree_serialise_leaves(ema_path, ema_network)
             ema_latest = os.path.join(ckpt_dir, f"{run_name}_ema.eqx")
             eqx.tree_serialise_leaves(ema_latest, ema_network)

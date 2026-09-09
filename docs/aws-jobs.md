@@ -123,7 +123,41 @@ Optional controls:
 
 For `scripts/train_ppo.py`, `--resume-from` downloads the object and supplies it as
 `--init_checkpoint`. A custom command can place `{resume_from}` where the local
-downloaded path belongs.
+downloaded path belongs. `--resume-ema-from` downloads a second object (the EMA
+weights saved beside each full milestone) and substitutes it for `{resume_ema}`.
+
+## Resume training from milestone checkpoints
+
+Full milestone checkpoints (`<run>_<iter>.eqx`) contain the network and Adam
+optimizer state, so training can continue from them. Resume a whole seed matrix
+with per-seed checkpoint URIs; the matching `_ema_` URI is derived
+automatically:
+
+```bash
+python jobs/cli.py --profile generals-jobs submit-matrix \
+  --run-prefix exp8k \
+  --config configs/experiments/L_7d_gae90_8k.yaml \
+  --seeds 44,45,46 \
+  --num-iters 6000 --save-at 4000 8000 \
+  --iteration-offset 2000 \
+  --resume-checkpoints \
+    44=s3://<bucket>/generals/experiments/<exp44>/checkpoints/<run44>/<run44>_2000.eqx \
+    45=s3://<bucket>/generals/experiments/<exp45>/checkpoints/<run45>/<run45>_2000.eqx \
+    46=s3://<bucket>/generals/experiments/<exp46>/checkpoints/<run46>/<run46>_2000.eqx
+```
+
+`--iteration-offset` is the global iteration count already completed by the
+checkpoints. It shifts the entropy/gamma schedules to continue where the source
+run stopped (the LR schedule continues automatically through the restored Adam
+step count), and it makes logged iterations, `train/env_interactions`,
+checkpoint filenames, and `--save-at` milestones global. In the example above,
+`--num-iters 6000` runs global iterations 2,001-8,000 and `--save-at 4000 8000`
+writes `<run>_4000.eqx` and `<run>_8000.eqx`.
+
+Two aspects intentionally do not resume: the RNG stream restarts from the seed,
+and the curriculum restarts at stage 0 and re-advances through its win-rate
+gates (about 200 iterations at `eval_every: 50` when the agent passes each gate
+on the first eval).
 
 ## Inspect a job
 
